@@ -1,6 +1,7 @@
 vendor/
 portal/log
 portal/tmp
+webapp/log
 
 ### Portal
 # Ignore bundler config.
