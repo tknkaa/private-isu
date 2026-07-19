@@ -203,6 +203,18 @@ docker run --network host --add-host host.docker.internal:host-gateway -i privat
        valid_lft forever preferred_lft forever
 ```
 
+##### rootless Podmanでログファイルが読めない場合
+
+rootless Podman環境では、コンテナ内のUIDがユーザー名前空間によりホスト側の別UIDへマッピングされます。そのため、`compose.yml`でホストにバインドマウントしたログファイル（例: `webapp/log/mysql/mysql-slow.log`）を、コンテナを起動したホスト側のユーザーが直接読み取れないことがあります。
+
+その場合は`podman unshare`でユーザー名前空間に入ってパーミッションを変更してください。
+
+```sh
+podman unshare chmod 644 webapp/log/mysql/mysql-slow.log
+```
+
+これによりホスト側のユーザーでもファイルを読み取れるようになります。
+
 ### cloud-init を利用して環境を構築する
 
 matsuu氏が提供する[`cloud-init`に対応したISUCON過去問題環境構築用のcloud-config集](https://github.com/matsuu/cloud-init-isucon/)を利用して、競技者用およびベンチマーカーインスタンスを構築できます。

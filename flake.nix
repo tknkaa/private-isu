@@ -20,6 +20,7 @@
       devShells.${system}.default = pkgs.mkShell {
         buildInputs = [
           pkgs.apacheHttpd
+          pkgs.percona-toolkit
         ];
       };
 
