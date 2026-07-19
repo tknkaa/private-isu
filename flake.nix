@@ -21,6 +21,8 @@
         buildInputs = [
           pkgs.apacheHttpd
           pkgs.percona-toolkit
+          pkgs.sysstat
+          pkgs.k6
         ];
       };
 
