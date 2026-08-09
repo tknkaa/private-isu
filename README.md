@@ -215,6 +215,61 @@ podman unshare chmod 644 webapp/log/mysql/mysql-slow.log
 
 これによりホスト側のユーザーでもファイルを読み取れるようになります。
 
+##### MySQLコンテナへの接続
+
+`mysql`サービスのコンテナ内で`mysql`クライアントを実行し、`isuconp`データベースに接続できます。
+
+```sh
+cd webapp
+docker compose exec mysql mysql -uroot -proot isuconp
+```
+
+`docker compose exec <サービス名> <コマンド>`は、起動中のコンテナ内でコマンドを実行します。ここでは`mysql`サービスのコンテナに対して、コンテナ内にインストール済みの`mysql`クライアントを`-uroot -proot`（ユーザー名・パスワードともに`root`）で実行し、`isuconp`データベースに接続しています。
+
+ホスト側にMySQLクライアントがあれば、`compose.yml`で公開されているポート経由で直接接続することも可能です。
+
+```sh
+mysql -h127.0.0.1 -P3306 -uroot -proot isuconp
+```
+
+##### スロークエリログの取得とローテーション
+
+`webapp/etc/mysql/conf.d/my.cnf`で以下のように設定すると、実行時間によらず全クエリがスロークエリログに記録されます。
+
+```ini
+[mysqld]
+slow_query_log = 1
+slow_query_log_file = /var/log/mysql/mysql-slow.log
+long_query_time = 0
+```
+
+ログはホスト側の`webapp/log/mysql/mysql-slow.log`に出力されるため、[Percona Toolkit](https://www.percona.com/percona-toolkit)の`pt-query-digest`で分析できます。
+
+```sh
+cd webapp
+pt-query-digest log/mysql/mysql-slow.log
+```
+
+ベンチマーク実行ごとにログをローテーションしておくと、実行単位で結果を比較しやすくなります。
+
+```sh
+ts=$(date +%Y%m%d%H%M%S)
+mv log/mysql/mysql-slow.log log/mysql/mysql-slow.log.$ts
+docker compose exec mysql mysqladmin -uroot -proot flush-logs
+```
+
+`mysqld`はログファイルのファイルディスクリプタを開いたままにしているため、`mv`だけではリネーム後のファイルに書き込みを続けてしまいます。`mysqladmin flush-logs`で`mysqld`にログファイルを閉じて再度開き直させることで、`mysql-slow.log`という名前で新しいログの記録が始まります。リネームした方のファイルに対して`pt-query-digest`を実行してください。
+
+```sh
+pt-query-digest log/mysql/mysql-slow.log.$ts
+```
+
+rootless Podman環境では、[前述の通り](#rootless-podmanでログファイルが読めない場合)ログファイルの読み取り権限で問題が起きることに加え、`log/mysql`ディレクトリ自体の書き込み権限が無く上記の`mv`によるローテーションが失敗することがあります。その場合は`podman unshare`でディレクトリの権限も変更してください。
+
+```sh
+podman unshare chmod 775 webapp/log/mysql
+```
+
 ### cloud-init を利用して環境を構築する
 
 matsuu氏が提供する[`cloud-init`に対応したISUCON過去問題環境構築用のcloud-config集](https://github.com/matsuu/cloud-init-isucon/)を利用して、競技者用およびベンチマーカーインスタンスを構築できます。
